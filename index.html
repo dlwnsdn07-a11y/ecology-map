@@ -56,7 +56,7 @@
 <div id="map"></div>
 <!-- 투어 컨트롤 -->
 <div id="tour-controls" style="
-  position:absolute; right:10px; top:10px; z-index:20;
+  position:absolute; right:10px; top:10px; z-index:99999;
   display:flex; gap:8px; flex-wrap:wrap;
 ">
   <button id="btn-tour-A" style="
@@ -418,15 +418,9 @@ document.getElementById('btn-tour-stop').addEventListener('click', () => {
 });
 
 </script>
- <!-- 투어 버튼 UI -->
-<div style="position:absolute; right:10px; top:10px; z-index:99999; display:flex; flex-direction:column; gap:6px;">
-  <button id="btn-tour-A" style="padding:6px 12px; font-size:14px; cursor:pointer;">A 루트 투어 시작</button>
-  <button id="btn-tour-B" style="padding:6px 12px; font-size:14px; cursor:pointer;">B 루트 투어 시작</button>
-  <button id="btn-tour-stop" style="padding:6px 12px; font-size:14px; cursor:pointer;">정지</button>
-</div>
-
 </body>
 </html>
+
 
 
 
