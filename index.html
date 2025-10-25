@@ -54,6 +54,21 @@
 <body>
 
 <div id="map"></div>
+<!-- 투어 컨트롤 -->
+<div id="tour-controls" style="
+  position:absolute; right:10px; top:10px; z-index:20;
+  display:flex; gap:8px; flex-wrap:wrap;
+">
+  <button id="btn-tour-A" style="
+    padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#ffffffd9; cursor:pointer;
+  ">▶ 생태 분류 투어 시작</button>
+  <button id="btn-tour-B" style="
+    padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#ffffffd9; cursor:pointer;
+  ">▶ 위치 기반 투어 시작</button>
+  <button id="btn-tour-stop" style="
+    padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff3f3; cursor:pointer;
+  ">■ 정지</button>
+</div>
 
 <div class="legend">
   <div class="legend-row"><span class="dot conifer">🌲</span> 침엽수</div>
@@ -263,30 +278,146 @@
   };
 
   // 마커 + 팝업 (파일명 한글/공백 안전 처리, 팝업은 X버튼으로만 닫힘)
-  items.forEach(item => {
-    const el = document.createElement('div');
-    el.className = `marker ${typeToClass[item.type] || 'tree'}`;
-    el.title = item.name;
-    el.textContent = item.emoji || '📍';
+ items.forEach(item => {
+  const el = document.createElement('div');
+  el.className = `marker ${typeToClass[item.type] || 'tree'}`;
+  el.title = item.name;
+  el.textContent = item.emoji || '📍';
 
-    const imgSrc = encodeURI(item.img);
-    const popupHTML = `
-      <div class="popup">
-        <h3>${item.name}</h3>
-        <img src="${imgSrc}" alt="${item.name}">
-        <div>${item.desc}</div>
-        <div class="tags">${(item.tags||[]).map(t=>`<span>#${t}</span>`).join(' ')}</div>
-      </div>
-    `;
-    const popup = new mapboxgl.Popup({
-      offset: 18,
-      maxWidth: "340px",
-      closeButton: true,
-      closeOnClick: false   // ← B 옵션: X 버튼으로만 닫힘
-    }).setHTML(popupHTML);
+  const imgSrc = encodeURI(item.img);
+  const popupHTML = `
+    <div class="popup">
+      <h3>${item.name}</h3>
+      <img src="${imgSrc}" alt="${item.name}">
+      <div>${item.desc}</div>
+      <div class="tags">${(item.tags||[]).map(t=>`<span>#${t}</span>`).join(' ')}</div>
+    </div>
+  `;
+  const popup = new mapboxgl.Popup({
+    offset: 18,
+    maxWidth: "340px",
+    closeButton: true,
+    closeOnClick: false // X 버튼으로만 닫힘
+  }).setHTML(popupHTML);
 
-    new mapboxgl.Marker(el).setLngLat([item.lng, item.lat]).setPopup(popup).addTo(map);
+  const marker = new mapboxgl.Marker(el).setLngLat([item.lng, item.lat]).setPopup(popup).addTo(map);
+
+  markerByName[item.name] = { marker, item };
+  markers.push({ marker, item });
+});
+ // ===== 자동 투어 기능 =====
+
+// 모든 팝업 닫기
+function closeAllPopups() {
+  markers.forEach(({marker}) => {
+    const p = marker.getPopup && marker.getPopup();
+    if (p) p.remove();
   });
+}
+
+// 하나의 지점으로 이동 + 팝업 자동 열기
+function flyAndOpen(name, dwellMs = 3000) {
+  const ref = markerByName[name];
+  if (!ref) return Promise.resolve();
+  const { item, marker } = ref;
+
+  map.flyTo({
+    center: [item.lng, item.lat],
+    zoom: 19,
+    pitch: 60,
+    bearing: map.getBearing(),
+    essential: true,
+    duration: 2000
+  });
+
+  return new Promise(resolve => {
+    setTimeout(() => {
+      closeAllPopups();
+      const p = marker.getPopup && marker.getPopup();
+      if (p) p.addTo(map);
+      setTimeout(resolve, dwellMs);
+    }, 2000);
+  });
+}
+
+// 거리 계산 함수 (B루트용)
+function haversine(lng1, lat1, lng2, lat2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI/180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// 이름 배열 순서대로 자동투어 실행
+async function runRouteByNames(names, dwellMs = 3000) {
+  tourController.running = true;
+  for (let i = 0; i < names.length && tourController.running; i++) {
+    await flyAndOpen(names[i], dwellMs);
+  }
+  tourController.running = false;
+}
+
+// B루트: 느티나무에서 시작해 최근접 순회
+function buildNearestRoute(startName) {
+  const route = [];
+  const visited = new Set();
+  let current = markerByName[startName]?.item;
+  if (!current) return route;
+
+  route.push(startName);
+  visited.add(startName);
+
+  for (let k = 0; k < items.length - 1; k++) {
+    let best=null, bestDist=Infinity;
+    for (const it of items) {
+      if (visited.has(it.name)) continue;
+      const d = haversine(current.lng, current.lat, it.lng, it.lat);
+      if (d < bestDist) { bestDist = d; best = it; }
+    }
+    if (!best) break;
+    route.push(best.name);
+    visited.add(best.name);
+    current=best;
+  }
+  return route;
+}
+
+// A루트(생태 논리 기반)
+const routeA = [
+  '은행나무','대왕참나무','느티나무','곰솔','스트로브 잣나무','섬잣나무','주목나무','향나무','측백나무','배롱나무','왕벚나무','감나무','모과나무','이팝나무',
+  '회양목','꽃댕강나무','영산홍','사철나무','낙상홍','조팝나무',
+  '강아지풀','서양등골나물','미국쑥부쟁이','조릿대',
+  '나팔꽃','등나무',
+  '미국흰불나방','무당거미',
+  '고양이'
+];
+
+// 투어 상태
+const tourController = { running:false };
+const DWELL_MS = 5000; // 한 지점당 머무름 총 5초
+
+// 버튼 바인딩
+document.getElementById('btn-tour-A').addEventListener('click', async () => {
+  if (tourController.running) return;
+  closeAllPopups();
+  await runRouteByNames(routeA, DWELL_MS);
+});
+
+document.getElementById('btn-tour-B').addEventListener('click', async () => {
+  if (tourController.running) return;
+  closeAllPopups();
+  const routeB = buildNearestRoute('느티나무');
+  await runRouteByNames(routeB, DWELL_MS);
+});
+
+document.getElementById('btn-tour-stop').addEventListener('click', () => {
+  tourController.running = false;
+  closeAllPopups();
+});
+
 </script>
 </body>
 </html>
+
