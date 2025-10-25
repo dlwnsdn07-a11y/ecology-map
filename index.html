@@ -11,11 +11,10 @@
   html, body { margin:0; height:100%; font-family: system-ui, -apple-system, "Noto Sans KR", Arial, sans-serif; }
   #map { width:100%; height:100%; }
 
-  /* 마커 이모지 버튼 */
   .marker {
     width: 34px; height: 34px; border-radius: 50%;
     display:flex; align-items:center; justify-content:center;
-    background:#fff; border:2px solid #222; box-shadow: 0 2px 6px rgba(0,0,0,.2);
+    background:#fff; border:2px solid #222; box-shadow:0 2px 6px rgba(0,0,0,.2);
     cursor: pointer; font-size:20px; user-select:none;
   }
   .marker.tree      { border-color:#2e7d32; }
@@ -29,7 +28,6 @@
   .marker.spider    { border-color:#6d4c41; }
   .marker.animal    { border-color:#455a64; }
 
-  /* 팝업 */
   .popup { max-width: 320px; font-size:14px; line-height:1.5; }
   .popup h3 { margin:0 0 6px; font-size:16px; }
   .popup img { width:100%; height:auto; border-radius:8px; margin:6px 0; }
@@ -39,7 +37,6 @@
     padding:2px 6px; border-radius:999px; margin-right:4px; margin-top:4px;
   }
 
-  /* 범례 */
   .legend {
     position: absolute; left:10px; top:10px; z-index:10;
     background:#fff; border:1px solid #ccc; border-radius:10px; padding:10px 12px;
@@ -47,7 +44,8 @@
   }
   .legend-row { display:flex; align-items:center; gap:6px; margin:4px 0; }
   .legend .dot {
-    width:20px; height:20px; border:2px solid #222; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px;
+    width:20px; height:20px; border:2px solid #222; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
   }
   .dot.tree{border-color:#2e7d32}.dot.conifer{border-color:#1b5e20}.dot.shrub{border-color:#558b2f}.dot.flower{border-color:#c2185b}
   .dot.herb{border-color:#6a1b9a}.dot.grass{border-color:#00796b}.dot.vine{border-color:#2e7d32}.dot.insect{border-color:#f57c00}.dot.spider{border-color:#6d4c41}.dot.animal{border-color:#455a64}
@@ -57,7 +55,6 @@
 
 <div id="map"></div>
 
-<!-- 범례 -->
 <div class="legend">
   <div class="legend-row"><span class="dot conifer">🌲</span> 침엽수</div>
   <div class="legend-row"><span class="dot tree">🌳</span> 활엽 교목</div>
@@ -72,25 +69,19 @@
 </div>
 
 <script>
-  // 1) 토큰 (정상 토큰만 한 줄로!)
-  mapboxgl.accessToken = 'pk.eyJ1IjoianVudXV1dSIsImEiOiJjbWg1MTYxNGswMncxMmxwdXA3MW9pNnd6In0.ByN0LUF-YaZ1X3sMASJBsg';
+  mapboxgl.accessToken = 'pk.eyJ1IjoianVudXV1dSIsImEiOiJjbWg1OXI2enEwNXJiMmlyM2txdHBjNmNwIn0.HdqWmsUAAzUdtbIOmHoSvg';
 
-  // 2) 지도 (서울교대 중심) + 3D 시점
   const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/light-v11',
     center: [127.0160, 37.4899],
     zoom: 18,
-    pitch: 60,   // 시점 기울기
-    bearing: -20 // 회전 각도
+    pitch: 60,
+    bearing: -20
   });
 
-  // 3) 스타일 로드 후 3D 건물 레이어 추가
   map.on('style.load', () => {
-    const layers = map.getStyle().layers;
-    const labelLayer = layers.find(l => l.type === 'symbol' && l.layout && l.layout['text-field']);
-    const labelLayerId = labelLayer ? labelLayer.id : undefined;
-
+    const labelLayer = map.getStyle().layers.find(l => l.type === 'symbol' && l.layout?.["text-field"]);
     map.addLayer({
       id: '3d-buildings',
       source: 'composite',
@@ -101,16 +92,14 @@
       paint: {
         'fill-extrusion-color': '#a7b0b5',
         'fill-extrusion-height': ['interpolate',['linear'],['zoom'], 15,0, 15.05,['get','height']],
-        'fill-extrusion-base': ['interpolate',['linear'],['zoom'], 15,0, 15.05,['get','min_height']],
+        'fill-extrusion-base':   ['interpolate',['linear'],['zoom'], 15,0, 15.05,['get','min_height']],
         'fill-extrusion-opacity': 0.7
       }
-    }, labelLayerId);
+    }, labelLayer?.id);
   });
 
-  // (디버그) 클릭 좌표 보기
+  // 클릭 디버그
   map.on('click', e => console.log('clicked:', e.lngLat));
-
-  // 4) 데이터 (좌표 + 이미지 + 확장 설명 + 태그)
   const items = [
     { name:'은행나무', type:'tree', emoji:'🌳', lng:127.01648751953951, lat:37.48950022789272,
       img:'images/은행나무.jpg',
@@ -166,7 +155,7 @@
       img:'images/스트로브 잣나무.jpg',
       desc:'스트로브 잣나무(Pinus strobus)는 북미 원산 침엽 교목으로, 침엽이 5개씩 속생하는 특징을 지닌다. 생장이 빠르고 직립 수형이 안정적이며, 양지·배수 양호한 토양에서 건실하게 자란다. 도심 공해에 대한 저항성이 비교적 높고, 조경수로서 바람길 형성 및 경관 축 구성에 적합하다. 어린 수목에서는 내풍성 확보를 위한 지지대 설치가 유용할 수 있다.',
       tags:['외래침엽','빠른생장','양지선호'] },
-
+   
     { name:'미국흰불나방', type:'insect', emoji:'🐛', lng:127.01555505993065, lat:37.48986725464802,
       img:'images/미국흰불나방.jpg',
       desc:'미국흰불나방(Hyphantria cunea)은 귀화 해충으로, 유충이 집단으로 잎을 식해하여 수목 생리장해를 유발할 수 있다. 성충은 야행성이며 교미·산란 후 짧은 생활사를 거친다. 친환경 방제로는 알·유충기 조기 제거, 유인트랩 설치, 천적 보전 등이 권장된다. 교정 내 관찰·모니터링은 식생 건강성 유지에 중요하다.',
@@ -241,7 +230,6 @@
       img:'images/영산홍.jpg',
       desc:'영산홍(Rhododendron indicum)은 상록성 철쭉류로, 약산성·배수 양호한 토양에서 엽색과 개화 상태가 우수하다. 반그늘~양지에서 생육이 가능하며, 뿌리 과습을 피하면 관리가 쉽다. 봄철 화량이 많아 수분 곤충에 자원을 제공한다. 군식·경계·사면 녹화에 활용된다.',
       tags:['상록관목','산성토양','봄개화'] },
-
     { name:'사철나무', type:'shrub', emoji:'🌿', lng:127.0160114348763, lat:37.49031962975003,
       img:'images/사철나무.jpg',
       desc:'사철나무(Euonymus japonicus)는 상록 관목으로 내공해성이 높아 생울타리·경계 식재에 빈용된다. 전정 내성이 강해 형태 유지가 용이하며, 엽색의 광택이 경관에 기여한다. 건조·염해에는 보통 수준으로 관리가 요구된다. 도시 미세기후 완화와 경관 경계 형성에 유용하다.',
@@ -274,14 +262,14 @@
     spider:'spider', animal:'animal'
   };
 
-  // 5) 마커 + 팝업 생성 (파일명 공백/한글 안전 처리)
+  // 마커 + 팝업 (파일명 한글/공백 안전 처리, 팝업은 X버튼으로만 닫힘)
   items.forEach(item => {
     const el = document.createElement('div');
     el.className = `marker ${typeToClass[item.type] || 'tree'}`;
     el.title = item.name;
     el.textContent = item.emoji || '📍';
 
-    const imgSrc = encodeURI(item.img); // 공백/한글 파일명 안전 처리
+    const imgSrc = encodeURI(item.img);
     const popupHTML = `
       <div class="popup">
         <h3>${item.name}</h3>
@@ -290,7 +278,12 @@
         <div class="tags">${(item.tags||[]).map(t=>`<span>#${t}</span>`).join(' ')}</div>
       </div>
     `;
-    const popup = new mapboxgl.Popup({ offset: 18, maxWidth: "340px" }).setHTML(popupHTML);
+    const popup = new mapboxgl.Popup({
+      offset: 18,
+      maxWidth: "340px",
+      closeButton: true,
+      closeOnClick: false   // ← B 옵션: X 버튼으로만 닫힘
+    }).setHTML(popupHTML);
 
     new mapboxgl.Marker(el).setLngLat([item.lng, item.lat]).setPopup(popup).addTo(map);
   });
